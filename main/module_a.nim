@@ -63,7 +63,7 @@ proc main() =
 
   echo "[?] Please type port range (ie: 100-9999) or press ENTER: "
   answer = readLine(stdin)
-  if  answer.len > 0:
+  if  answer.len > 0 and answer.len <= 65535:
             generalScan = false
             var port_ranges: seq[string] = answer.split("-")
             port_range_format = port_ranges[0] & " - " & port_ranges[1] #lazy workaround until I git gud
