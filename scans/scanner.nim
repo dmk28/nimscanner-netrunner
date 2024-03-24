@@ -4,7 +4,6 @@ import std/random
 import malebolgia
 import sequtils
 import "../types/port_types.nim"
-#to-do: incorporate a checker to make sure the IP is online or visible to the socket
 
 type TCPHeader* = object
   sourcePort: Port
