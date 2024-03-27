@@ -1,5 +1,4 @@
 import net, os
-import tables
 import std/random
 import malebolgia
 import sequtils
@@ -198,7 +197,7 @@ proc iterPortRange*(address: string, list_ports: var seq[ScannedPort], port_rang
   
   var results = newSeq[ScannedPort](max_range-min_range+1)
   # Synchronize all spawned tasks using an AwaitAll block
-  echo "Scanning"
+  echo "[+][!!!]Scanning[!!!][+]"
   # Perform port scanning based on the provided option in parallel
   for n in min_range..max_range:
         case option
