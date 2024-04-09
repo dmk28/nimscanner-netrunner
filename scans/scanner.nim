@@ -168,14 +168,12 @@ proc iterPorts*(address: string, list_ports: var seq[ScannedPort], option: int) 
   # Process the results
   # accounts for any possible voided ports in the seq, discards original, uses the filtered to print out results
 
-  var filteredResults: seq[ScannedPort] = filter(results, proc(x: ScannedPort): bool = int(x.scannedPort) > 0)
+  var filteredResults: seq[ScannedPort] = filter(results, proc(x: ScannedPort): bool = x.status == PortStatus.open and int(x.scannedPort) > 0)
   discard results
   for result in filteredResults:
-      if result.status == PortStatus.open:
-        echo result.scannedPort, " is: ", result.status
-      else:
-        echo "No ports based on the connection type were found open. Exiting."
+      echo result.scannedPort, " is: ", result.status
 
+ 
 
 proc iterPortRange*(address: string, list_ports: var seq[ScannedPort], port_range: seq[int], option: int) {.thread.} =
   # Validate input parameters
@@ -212,13 +210,12 @@ proc iterPortRange*(address: string, list_ports: var seq[ScannedPort], port_rang
           raise newException(ValueError, "Invalid option")
   
   # accounts for any possible voided ports in the seq, discards original, uses the filtered to print out results
-  var filteredResults: seq[ScannedPort] = filter(results, proc(x: ScannedPort): bool = int(x.scannedPort) > 0) 
+  var filteredResults: seq[ScannedPort] = filter(results, proc(x: ScannedPort): bool = int(x.scannedPort) > 0 and x.status == PortStatus.open) 
   discard results
   for result in filteredResults:
       if result.status == PortStatus.open:
         echo result.scannedPort, " is: ", result.status
-      else:
-        echo "No ports based on the connection type were found to be open. Exiting."
+
 
 
 
