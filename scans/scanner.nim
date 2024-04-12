@@ -33,7 +33,7 @@ proc connectSYNSocket*(address: string, port: Port): ScannedPort {.thread} =
 
    let packet_size = 128
    let packet = addr tcp_header
-   socket.connect(destIP, port, 40)
+   #socket.connect(destIP, port, 40)
 
    try:
     discard socket.send(packet, packet_size)
