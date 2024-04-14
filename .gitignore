@@ -5,3 +5,5 @@ sumup.py
 scanner
 .vscode
 module_a
+module_a2.nim
+alternate_main

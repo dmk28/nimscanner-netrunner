@@ -1,7 +1,7 @@
 import "../scans/scanner.nim"
 import "../types/port_types.nim"
-import  system, os, options
-import parseutils, parseopt, strutils, ndns
+import  system
+import parseutils, strutils, ndns
 import malebolgia
 
 # This is a simple port scanner written in Nim

@@ -18,66 +18,68 @@ type TCPHeader* = object
 
 
     
-proc connectSYNSocket*(address: string, port: Port): ScannedPort {.thread} =
-   var socket: Socket = newSocket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
-   let tcp_header = new TCPHeader
-   randomize()
+proc connectSYNSocket*(address: string, port: Port): ScannedPort {.thread.} =
+  const maxRetries = 3  # Adjust the maximum number of retries as needed
+  var retries = 0
 
-   socket.setSockOpt(OptNoDelay, true)
-   socket.setSockOpt(OptKeepAlive, false)
-   tcp_header.sourcePort = Port(uint16(rand(1024..65535)))
-   tcp_header.destPort = port
-   tcp_header.flags = 0x02
+  while retries < maxRetries:
+    var socket: Socket = newSocket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
+    let tcp_header = new TCPHeader
+    randomize()
 
-   var destIP = address
+    socket.setSockOpt(OptNoDelay, true)
+    socket.setSockOpt(OptKeepAlive, false)
+    tcp_header.sourcePort = Port(uint16(rand(1024..65535)))
+    tcp_header.destPort = port
+    tcp_header.flags = 0x02
 
-   let packet_size = 128
-   let packet = addr tcp_header
-   #socket.connect(destIP, port, 40)
+    let packet_size = 128
+    let packet = addr tcp_header
+    
+    try:
+      discard socket.send(packet, packet_size)
+      let response_size = packet_size
+      let buffer: seq[byte] = newSeq[byte](response_size)
+      let received_size = socket.recv(buffer.addr, response_size, 150)
+      if received_size == response_size:
+          var tcp_response: TCPHeader
+          copyMem(addr tcp_response, buffer.addr, response_size)
 
-   try:
-    discard socket.send(packet, packet_size)
-    let response_size = packet_size
-
-    let buffer: seq[byte] = newSeq[byte](response_size)
-    let received_size = socket.recv(buffer.addr, response_size, 150)
-
-    if received_size == response_size:
-        var tcp_response: TCPHeader
-        copyMem(addr tcp_response, buffer.addr, response_size)
+          if tcp_response.flags == 0x12:
+            result.scannedPort = port
+            result.status = PortStatus.open
+          else: 
+            result.scannedPort = port
+            result.status = PortStatus.closedORfiltered
+      else:
         
-
-        if tcp_response.flags == 0x12:
-          result.scannedPort = port
-          result.status = PortStatus.open
-          
-        else: 
           result.scannedPort = port
           result.status = PortStatus.closedORfiltered
 
-   except IOError as e:
-    echo "Packet was not sent", e.msg
-    return 
-   except OSError as e:
-    case e.name:
-      of "ICMP_PORT_UNREACHABLE":
-        result.scannedPort = port
-        result.status = PortStatus.closed
-      else: 
-        result.scannedPort = port
-        result.status = PortStatus.filtered
+      # Connection successful, break out of the loop
+      break
 
-   except:
-    echo "Unknown error", getCurrentExceptionMsg()
+    except IOError as e:
+      echo "Packet was not sent:", e.msg
+    except OSError as e:
+      case e.name
+      of "ConnectionRefused":
+        echo "Connection Refused. Retrying..."
+      else:
+        echo "Socket error:", e.name
+    finally:
+      if not socket.isNil:
+        socket.close()
+
+    # Increment the retry counter
+    inc(retries)
+
+  # If the loop exits without a successful connection, set status to closed
+  if retries == maxRetries:
     result.scannedPort = port
-    result.status = PortStatus.unknown
+    result.status = PortStatus.closedORfiltered
+  return result
 
-   finally:
-    if not socket.isNil:
-      socket.close()
-
-   return result
-  
 
 
 proc connectSocket*(address: string, port: Port): ScannedPort {.thread} =
@@ -145,26 +147,24 @@ proc connectUDPSocket*(address: string, port: Port): ScannedPort {.thread} =
 
 
 proc iterPorts*(address: string, list_ports: var seq[ScannedPort], option: int) =
-  # Validate the option
-  if option < 1 or option > 3:
-    echo "Invalid option"
-    quit(1)
+
 
   # Create a Master object for task coordination
   var m = createMaster()
 
   var results = newSeq[ScannedPort](65535)
   # Perform port scanning based on the provided option in parallel
-  for n in 1 .. 65535:
-      case option
-      of 1:
-        m.spawn connectSocket(address, Port(n)) -> results[n - 1]
-      of 2:
-        m.spawn connectUDPSocket(address, Port(n)) -> results[n - 1]
-      of 3:
-        m.spawn connectSYNSocket(address, Port(n)) -> results[n - 1] 
-      else:
-        raise newException(ValueError, "Invalid option")
+  m.awaitAll:
+    for n in 1 .. 65535:
+        case option
+        of 1:
+          m.spawn connectSocket(address, Port(n)) -> results[n - 1]
+        of 2:
+          m.spawn connectUDPSocket(address, Port(n)) -> results[n - 1]
+        of 3:
+          m.spawn connectSYNSocket(address, Port(n)) -> results[n - 1] 
+        else:
+          raise newException(ValueError, "Invalid option")
   # Process the results
   # accounts for any possible voided ports in the seq, discards original, uses the filtered to print out results
 
@@ -183,9 +183,6 @@ proc iterPortRange*(address: string, list_ports: var seq[ScannedPort], port_rang
   var min_range = port_range[0]
   var max_range = port_range[1]
 
-  if option < 1 or option > 3:
-    raise newException(ValueError, "Invalid option")
-
   # Process port range
   if port_range.len == 1:
     min_range = 1
@@ -197,17 +194,17 @@ proc iterPortRange*(address: string, list_ports: var seq[ScannedPort], port_rang
   # Synchronize all spawned tasks using an AwaitAll block
   echo "[+][!!!]Scanning[!!!][+]"
   # Perform port scanning based on the provided option in parallel
-  for n in min_range..max_range:
-        case option
-        of 1:
-          m.spawn connectSocket(address, Port(n)) ->  results[n - min_range]
-        of 2:
-          m.spawn connectUDPSocket(address, Port(n)) -> results[n - min_range]
-        of 3:
- 
-          m.spawn connectSYNSocket(address, Port(n)) -> results[n - min_range]
-        else:
-          raise newException(ValueError, "Invalid option")
+  m.awaitAll:
+    for n in min_range..max_range:
+          case option
+          of 1:
+            m.spawn connectSocket(address, Port(n)) ->  results[n - min_range]
+          of 2:
+            m.spawn connectUDPSocket(address, Port(n)) -> results[n - min_range]
+          of 3:
+            m.spawn connectSYNSocket(address, Port(n)) -> results[n - min_range]
+          else:
+            raise newException(ValueError, "Invalid option")
   
   # accounts for any possible voided ports in the seq, discards original, uses the filtered to print out results
   var filteredResults: seq[ScannedPort] = filter(results, proc(x: ScannedPort): bool = int(x.scannedPort) > 0 and x.status == PortStatus.open) 
