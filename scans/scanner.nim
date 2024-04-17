@@ -37,11 +37,13 @@ proc connectSYNSocket*(address: string, port: Port): ScannedPort {.thread.} =
     let packet = addr tcp_header
     
     try:
+      echo "Sending packet"
       discard socket.send(packet, packet_size)
       let response_size = packet_size
       let buffer: seq[byte] = newSeq[byte](response_size)
       let received_size = socket.recv(buffer.addr, response_size, 150)
       if received_size == response_size:
+          echo "Received packet"
           var tcp_response: TCPHeader
           copyMem(addr tcp_response, buffer.addr, response_size)
 
@@ -172,6 +174,8 @@ proc iterPorts*(address: string, list_ports: var seq[ScannedPort], option: int) 
   discard results
   for result in filteredResults:
       echo result.scannedPort, " is: ", result.status
+  if filteredResults.len == 0:
+    echo "No open ports found; please try another method or employ evasion techniques."
 
  
 
@@ -212,7 +216,10 @@ proc iterPortRange*(address: string, list_ports: var seq[ScannedPort], port_rang
   for result in filteredResults:
       if result.status == PortStatus.open:
         echo result.scannedPort, " is: ", result.status
-
+  if filteredResults.len == 0:
+    echo "No open ports found in given range"
+ 
+  
 
 
 
