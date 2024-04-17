@@ -176,8 +176,7 @@ proc iterPorts*(address: string, list_ports: var seq[ScannedPort], option: int) 
   discard results
   for result in filteredResults:
       echo result.scannedPort, " is: ", result.status
-  if filteredResults.len == 0:
-    echo "No open ports found; please try another method or employ evasion techniques."
+  
 
  
 
@@ -218,8 +217,6 @@ proc iterPortRange*(address: string, list_ports: var seq[ScannedPort], port_rang
   for result in filteredResults:
       if result.status == PortStatus.open:
         echo result.scannedPort, " is: ", result.status
-  if filteredResults.len == 0:
-    echo "No open ports found in given range"
  
   
 
