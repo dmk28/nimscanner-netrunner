@@ -50,6 +50,8 @@ proc connectSYNSocket*(address: string, port: Port): ScannedPort {.thread.} =
           if tcp_response.flags == 0x12:
             result.scannedPort = port
             result.status = PortStatus.open
+          elif tcp_response.flags == 0x10:
+            discard tcp_response
           else: 
             result.scannedPort = port
             result.status = PortStatus.closedORfiltered
