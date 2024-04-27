@@ -35,7 +35,6 @@ proc connectSYNSocket*(address: string, port: Port): ScannedPort {.thread.} =
 
     let packet_size = 128
     let packet = addr tcp_header
-    
     try:
       echo "Sending packet"
       discard socket.send(packet, packet_size)
@@ -77,7 +76,8 @@ proc connectSYNSocket*(address: string, port: Port): ScannedPort {.thread.} =
 
     # Increment the retry counter
     inc(retries)
-
+  let wait = rand(100..1000)
+  sleep(wait)
   # If the loop exits without a successful connection, set status to closed
   if retries == maxRetries:
     result.scannedPort = port
@@ -91,7 +91,7 @@ proc connectSocket*(address: string, port: Port): ScannedPort {.thread} =
     
     var socket: Socket = newSocket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
     try: 
-        socket.connect(address, port, 50)
+        socket.connect(address, port, 120)
         result.scannedPort = port
         result.status = PortStatus.open
     except:
@@ -176,6 +176,8 @@ proc iterPorts*(address: string, list_ports: var seq[ScannedPort], option: int) 
   discard results
   for result in filteredResults:
       echo result.scannedPort, " is: ", result.status
+  if filteredResults.len == 0:
+    echo "No open ports found. Please check for false negatives."
   
 
  
@@ -218,8 +220,8 @@ proc iterPortRange*(address: string, list_ports: var seq[ScannedPort], port_rang
       if result.status == PortStatus.open:
         echo result.scannedPort, " is: ", result.status
  
-  
-
+  if filteredResults.len == 0:
+    echo "No open ports found. Please check for false negatives."
 
 
 

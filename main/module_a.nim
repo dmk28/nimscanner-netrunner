@@ -52,12 +52,17 @@ proc main() =
   var port_range_format: string 
   var synScan: bool
 
- 
-  echo "[?] Please type target IP Address: "
-  answer = readLine(stdin)
-  if isValidIP(answer):
-            ip = answer
+  echo "Is it a host or an IP address? Type 'host' or 'ip'"
+  let answer_host = readLine(stdin)
+  if answer_host == "ip":
+
+      echo "[?] Please type target IP Address: "
+      answer = readLine(stdin)
+      if isValidIP(answer):
+                ip = answer
   else:
+    echo "Please type host"
+    answer = readLine(stdin)
     answer = resolveDNS(answer).join
     ip = answer
 
