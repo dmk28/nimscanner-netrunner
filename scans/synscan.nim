@@ -1,4 +1,4 @@
-import net, os, nativesockets, strutils, endians
+import net, os, nativesockets
 import std/random
 import "../types/port_types"
 
