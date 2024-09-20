@@ -3,6 +3,7 @@ import std/random
 import malebolgia
 import sequtils
 import "../types/port_types.nim"
+import "./synscan.nim"
 
 type TCPHeader* = object
   sourcePort: Port
@@ -15,74 +16,6 @@ type TCPHeader* = object
   windowSize: uint16
   checksum: uint16
   urgentPointer: uint16
-
-
-    
-proc connectSYNSocket*(address: string, port: Port): ScannedPort {.thread.} =
-  const maxRetries = 3  # Adjust the maximum number of retries as needed
-  var retries = 0
-
-  while retries < maxRetries:
-    var socket: Socket = newSocket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
-    let tcp_header = new TCPHeader
-    randomize()
-
-    socket.setSockOpt(OptNoDelay, true)
-    socket.setSockOpt(OptKeepAlive, false)
-    tcp_header.sourcePort = Port(uint16(rand(1024..65535)))
-    tcp_header.destPort = port
-    tcp_header.flags = 0x02
-
-    let packet_size = 128
-    let packet = addr tcp_header
-    try:
-      echo "Sending packet"
-      discard socket.send(packet, packet_size)
-      let response_size = packet_size
-      let buffer: seq[byte] = newSeq[byte](response_size)
-      let received_size = socket.recv(buffer.addr, response_size, 150)
-      if received_size == response_size:
-          echo "Received packet"
-          var tcp_response: TCPHeader
-          copyMem(addr tcp_response, buffer.addr, response_size)
-
-          if tcp_response.flags == 0x12:
-            result.scannedPort = port
-            result.status = PortStatus.open
-          elif tcp_response.flags == 0x10:
-            discard tcp_response
-          else: 
-            result.scannedPort = port
-            result.status = PortStatus.closedORfiltered
-      else:
-        
-          result.scannedPort = port
-          result.status = PortStatus.closedORfiltered
-
-      # Connection successful, break out of the loop
-      break
-
-    except IOError as e:
-      echo "Packet was not sent:", e.msg
-    except OSError as e:
-      case e.name
-      of "ConnectionRefused":
-        echo "Connection Refused. Retrying..."
-      else:
-        echo "Socket error:", e.name
-    finally:
-      if not socket.isNil:
-        socket.close()
-
-    # Increment the retry counter
-    inc(retries)
-  let wait = rand(100..1000)
-  sleep(wait)
-  # If the loop exits without a successful connection, set status to closed
-  if retries == maxRetries:
-    result.scannedPort = port
-    result.status = PortStatus.closedORfiltered
-  return result
 
 
 
